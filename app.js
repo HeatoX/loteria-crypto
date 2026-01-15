@@ -263,8 +263,8 @@ async function loadRecentTransactions() {
             const currentBlock = await provider.getBlockNumber();
             console.log(`Bloque actual: ${currentBlock}`);
 
-            // Buscar en un rango razonable (últimas 3 horas aprox = 3600 bloques)
-            const fromBlock = Math.max(0, currentBlock - 3600);
+            // Buscar en un rango MUY pequeño para evitar rate limiting (500 bloques = ~25 min)
+            const fromBlock = Math.max(0, currentBlock - 500);
             console.log(`Buscando eventos desde bloque ${fromBlock}...`);
 
             const filter = contract.filters.NewTicketBought();
@@ -276,9 +276,9 @@ async function loadRecentTransactions() {
                 break; // Encontramos eventos, salir del loop
             }
 
-            // Si no hay eventos en las últimas 3 horas, buscar más atrás
+            // Si no hay eventos recientes, buscar un poco más atrás (2000 bloques máx)
             if (events.length === 0) {
-                const olderFromBlock = Math.max(0, currentBlock - 10000);
+                const olderFromBlock = Math.max(0, currentBlock - 2000);
                 console.log(`Buscando más atrás desde bloque ${olderFromBlock}...`);
                 events = await contract.queryFilter(filter, olderFromBlock, fromBlock);
                 console.log(`Eventos antiguos encontrados: ${events.length}`);
@@ -390,14 +390,14 @@ async function loadWinnersHistory() {
     if (!winnersList) return;
 
     try {
-        const provider = new ethers.providers.JsonRpcProvider("https://rpc.ankr.com/bsc");
+        const provider = new ethers.providers.JsonRpcProvider("https://bsc-dataseed1.binance.org/");
         const contract = new ethers.Contract(CONTRACT_ADDRESS, [
             "event WinnerPicked(address indexed winner, uint256 prize, uint256 lotteryId)"
         ], provider);
 
-        // Buscar eventos en los últimos 100000 bloques (~4 días) para evitar limit exceeded
+        // Buscar eventos en los últimos 5000 bloques (~4 horas) para evitar limit exceeded
         const currentBlock = await provider.getBlockNumber();
-        const fromBlock = Math.max(0, currentBlock - 100000);
+        const fromBlock = Math.max(0, currentBlock - 5000);
         const filter = contract.filters.WinnerPicked();
         const events = await contract.queryFilter(filter, fromBlock, 'latest');
 
