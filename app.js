@@ -241,56 +241,93 @@ async function loadRecentTransactions() {
         </div>
     `;
 
+    // RPCs más confiables para consultar logs
+    const rpcEndpoints = [
+        "https://rpc.ankr.com/bsc",
+        "https://bsc-dataseed1.binance.org/",
+        "https://bsc-dataseed2.binance.org/"
+    ];
+
+    let events = [];
+    let provider = null;
+
+    for (const rpc of rpcEndpoints) {
+        try {
+            console.log(`Probando RPC: ${rpc}`);
+            provider = new ethers.providers.JsonRpcProvider(rpc);
+
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, [
+                "event NewTicketBought(address indexed player, uint256 amount)"
+            ], provider);
+
+            const currentBlock = await provider.getBlockNumber();
+            console.log(`Bloque actual: ${currentBlock}`);
+
+            // Buscar en un rango razonable (últimas 3 horas aprox = 3600 bloques)
+            const fromBlock = Math.max(0, currentBlock - 3600);
+            console.log(`Buscando eventos desde bloque ${fromBlock}...`);
+
+            const filter = contract.filters.NewTicketBought();
+            events = await contract.queryFilter(filter, fromBlock, currentBlock);
+
+            console.log(`Eventos encontrados: ${events.length}`);
+
+            if (events.length > 0) {
+                break; // Encontramos eventos, salir del loop
+            }
+
+            // Si no hay eventos en las últimas 3 horas, buscar más atrás
+            if (events.length === 0) {
+                const olderFromBlock = Math.max(0, currentBlock - 10000);
+                console.log(`Buscando más atrás desde bloque ${olderFromBlock}...`);
+                events = await contract.queryFilter(filter, olderFromBlock, fromBlock);
+                console.log(`Eventos antiguos encontrados: ${events.length}`);
+                if (events.length > 0) break;
+            }
+
+        } catch (error) {
+            console.warn(`RPC ${rpc} falló:`, error.message);
+            continue;
+        }
+    }
+
+    // Si no hay eventos
+    if (events.length === 0) {
+        console.log("No se encontraron eventos de compra");
+        txList.innerHTML = `
+            <div class="empty-state">
+                <span class="empty-icon">👀</span>
+                <p>Esperando la primera compra...</p>
+                <p class="empty-subtitle">¡Sé el primero en participar!</p>
+            </div>
+        `;
+        return;
+    }
+
     try {
-        // Usar API V2 de Etherscan con chainid para BSC
-        const apiUrl = `https://api.etherscan.io/v2/api?chainid=56&module=account&action=txlist&address=${CONTRACT_ADDRESS}&startblock=0&endblock=99999999&page=1&offset=50&sort=desc`;
+        // Ordenar por bloque (más reciente primero) y tomar últimos 10
+        const sortedEvents = events.sort((a, b) => b.blockNumber - a.blockNumber).slice(0, 10);
+        console.log(`Procesando ${sortedEvents.length} eventos...`);
 
-        const response = await fetch(apiUrl);
-        const data = await response.json();
-
-        console.log("BscScan API response:", data);
-
-        if (data.status !== "1" || !data.result || data.result.length === 0) {
-            console.log("No hay transacciones recientes en BscScan");
-            txList.innerHTML = `
-                <div class="empty-state">
-                    <span class="empty-icon">👀</span>
-                    <p>Esperando la primera compra...</p>
-                    <p class="empty-subtitle">¡Sé el primero en participar!</p>
-                </div>
-            `;
-            return;
-        }
-
-        // Filtrar solo transacciones exitosas que envían BNB al contrato (compras)
-        const purchases = data.result.filter(tx =>
-            tx.to.toLowerCase() === CONTRACT_ADDRESS.toLowerCase() &&
-            tx.isError === "0" &&
-            parseInt(tx.value) > 0
-        ).slice(0, 10);
-
-        if (purchases.length === 0) {
-            txList.innerHTML = `
-                <div class="empty-state">
-                    <span class="empty-icon">👀</span>
-                    <p>Esperando la primera compra...</p>
-                    <p class="empty-subtitle">¡Sé el primero en participar!</p>
-                </div>
-            `;
-            return;
-        }
-
-        // Convertir a formato que esperamos
-        const eventsWithTime = purchases.map(tx => {
-            const valueBNB = parseFloat(ethers.utils.formatEther(tx.value));
-            const ticketCount = Math.round(valueBNB / parseFloat(TICKET_PRICE_BNB));
-            return {
-                player: tx.from,
-                amount: ticketCount || 1,
-                txHash: tx.hash,
-                timestamp: parseInt(tx.timeStamp)
-            };
-        });
+        // Obtener timestamps de los bloques
+        const eventsWithTime = await Promise.all(sortedEvents.map(async (event) => {
+            try {
+                const block = await provider.getBlock(event.blockNumber);
+                return {
+                    player: event.args.player,
+                    amount: event.args.amount.toNumber(),
+                    txHash: event.transactionHash,
+                    timestamp: block ? block.timestamp : Math.floor(Date.now() / 1000)
+                };
+            } catch (e) {
+                return {
+                    player: event.args.player,
+                    amount: event.args.amount.toNumber(),
+                    txHash: event.transactionHash,
+                    timestamp: Math.floor(Date.now() / 1000)
+                };
+            }
+        }));
 
         // Limpiar y mostrar
         txList.innerHTML = '';
@@ -301,10 +338,10 @@ async function loadRecentTransactions() {
             addTransaction(tx.player, tx.amount, tx.txHash, tx.timestamp);
         });
 
-        console.log(`✅ Cargadas ${eventsWithTime.length} transacciones desde BscScan`);
+        console.log(`✅ Cargadas ${eventsWithTime.length} transacciones`);
 
     } catch (error) {
-        console.error("Error cargando transacciones:", error);
+        console.error("Error procesando eventos:", error);
         txList.innerHTML = `
             <div class="empty-state">
                 <span class="empty-icon">👀</span>
