@@ -193,3 +193,71 @@ function addTransaction(addr, tickets, txHash) {
 // --- INICIALIZAR AL CARGAR ---
 updateCost();
 initializeRealData();
+loadWinnersHistory();
+
+// --- CARGAR HISTORIAL DE GANADORES ---
+async function loadWinnersHistory() {
+    const winnersList = document.getElementById('winnersList');
+    if (!winnersList) return;
+
+    try {
+        const provider = new ethers.providers.JsonRpcProvider("https://bsc-dataseed1.binance.org/");
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, [
+            "event WinnerPicked(address indexed winner, uint256 prize, uint256 lotteryId)"
+        ], provider);
+
+        // Buscar eventos desde el bloque de creación del contrato
+        const filter = contract.filters.WinnerPicked();
+        const events = await contract.queryFilter(filter, 0, 'latest');
+
+        if (events.length === 0) {
+            winnersList.innerHTML = `
+                <div class="no-winners">
+                    <span class="no-winners-icon">🎰</span>
+                    <p>Aún no ha habido ningún sorteo. ¡Sé parte del primer ganador!</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Mostrar ganadores (más reciente primero)
+        winnersList.innerHTML = '';
+        const reversedEvents = events.reverse();
+
+        for (const event of reversedEvents.slice(0, 10)) { // Últimos 10
+            const winner = event.args.winner;
+            const prizeWei = event.args.prize;
+            const lotteryId = event.args.lotteryId.toString();
+            const txHash = event.transactionHash;
+
+            const prizeBNB = parseFloat(ethers.utils.formatEther(prizeWei));
+            const prizeUSD = (prizeBNB * BNB_PRICE_USD).toFixed(2);
+
+            const winnerCard = document.createElement('div');
+            winnerCard.className = 'winner-card';
+            winnerCard.innerHTML = `
+                <div class="winner-info">
+                    <span class="winner-round">Ronda #${lotteryId}</span>
+                    <span class="winner-address">${winner.slice(0, 8)}...${winner.slice(-6)}</span>
+                </div>
+                <div class="winner-prize">
+                    <span class="prize-amount">$${prizeUSD} USD</span>
+                    <span class="prize-bnb">(${prizeBNB.toFixed(4)} BNB)</span>
+                </div>
+                <a href="https://bscscan.com/tx/${txHash}" target="_blank" class="verify-btn">
+                    ✓ Verificar en BscScan
+                </a>
+            `;
+            winnersList.appendChild(winnerCard);
+        }
+
+    } catch (error) {
+        console.error("Error cargando ganadores:", error);
+        winnersList.innerHTML = `
+            <div class="error-state">
+                <p>No se pudo cargar el historial. Verifica directamente en 
+                <a href="https://bscscan.com/address/${CONTRACT_ADDRESS}#events" target="_blank">BscScan</a>.</p>
+            </div>
+        `;
+    }
+}
