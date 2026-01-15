@@ -241,102 +241,73 @@ async function loadRecentTransactions() {
         </div>
     `;
 
-    // Lista de RPCs de BSC (fallback)
-    const rpcEndpoints = [
-        "https://bsc-dataseed1.binance.org/",
-        "https://bsc-dataseed2.binance.org/",
-        "https://bsc-dataseed3.binance.org/",
-        "https://bsc-dataseed4.binance.org/"
-    ];
-
-    let provider = null;
-    let events = [];
-
-    // Intentar con diferentes RPCs
-    for (const rpc of rpcEndpoints) {
-        try {
-            provider = new ethers.providers.JsonRpcProvider(rpc);
-            const contract = new ethers.Contract(CONTRACT_ADDRESS, [
-                "event NewTicketBought(address indexed player, uint256 amount)"
-            ], provider);
-
-            // Buscar en lotes más grandes (10000 bloques = ~8 horas)
-            const currentBlock = await provider.getBlockNumber();
-            console.log(`Bloque actual: ${currentBlock}`);
-            const filter = contract.filters.NewTicketBought();
-
-            // Buscar primero en los últimos 10000 bloques 
-            let fromBlock = Math.max(0, currentBlock - 10000);
-            console.log(`Buscando desde bloque ${fromBlock} hasta ${currentBlock}...`);
-            events = await contract.queryFilter(filter, fromBlock, 'latest');
-
-            // Si no hay eventos, buscar más atrás (hasta 50000 bloques ~2 días)
-            if (events.length === 0) {
-                console.log(`No hay eventos recientes, buscando más atrás...`);
-                fromBlock = Math.max(0, currentBlock - 50000);
-                events = await contract.queryFilter(filter, fromBlock, currentBlock - 10000);
-            }
-
-            console.log(`RPC ${rpc}: Encontrados ${events.length} eventos.`);
-            break; // Salir del loop si funcionó
-
-        } catch (error) {
-            console.warn(`RPC ${rpc} falló:`, error.message);
-            continue; // Probar siguiente RPC
-        }
-    }
-
-    // Si no encontramos eventos después de todos los intentos
-    if (events.length === 0) {
-        txList.innerHTML = `
-            <div class="empty-state">
-                <span class="empty-icon">👀</span>
-                <p>Esperando la primera compra...</p>
-                <p class="empty-subtitle">¡Sé el primero en participar!</p>
-            </div>
-        `;
-        return;
-    }
-
     try {
-        // Ordenar por bloque (más reciente primero) y tomar últimos 10
-        const sortedEvents = events.sort((a, b) => b.blockNumber - a.blockNumber).slice(0, 10);
+        // Usar BscScan API para obtener transacciones del contrato (más confiable)
+        const apiUrl = `https://api.bscscan.com/api?module=account&action=txlist&address=${CONTRACT_ADDRESS}&startblock=0&endblock=99999999&page=1&offset=50&sort=desc`;
 
-        // Obtener timestamps de los bloques
-        const eventsWithTime = await Promise.all(sortedEvents.map(async (event) => {
-            try {
-                const block = await provider.getBlock(event.blockNumber);
-                return {
-                    player: event.args.player,
-                    amount: event.args.amount.toNumber(),
-                    txHash: event.transactionHash,
-                    timestamp: block ? block.timestamp : Math.floor(Date.now() / 1000)
-                };
-            } catch (e) {
-                return {
-                    player: event.args.player,
-                    amount: event.args.amount.toNumber(),
-                    txHash: event.transactionHash,
-                    timestamp: Math.floor(Date.now() / 1000)
-                };
-            }
-        }));
+        const response = await fetch(apiUrl);
+        const data = await response.json();
 
-        // Limpiar y mostrar (del más antiguo al más nuevo para que prepend funcione correctamente)
+        console.log("BscScan API response:", data);
+
+        if (data.status !== "1" || !data.result || data.result.length === 0) {
+            console.log("No hay transacciones recientes en BscScan");
+            txList.innerHTML = `
+                <div class="empty-state">
+                    <span class="empty-icon">👀</span>
+                    <p>Esperando la primera compra...</p>
+                    <p class="empty-subtitle">¡Sé el primero en participar!</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Filtrar solo transacciones exitosas que envían BNB al contrato (compras)
+        const purchases = data.result.filter(tx =>
+            tx.to.toLowerCase() === CONTRACT_ADDRESS.toLowerCase() &&
+            tx.isError === "0" &&
+            parseInt(tx.value) > 0
+        ).slice(0, 10);
+
+        if (purchases.length === 0) {
+            txList.innerHTML = `
+                <div class="empty-state">
+                    <span class="empty-icon">👀</span>
+                    <p>Esperando la primera compra...</p>
+                    <p class="empty-subtitle">¡Sé el primero en participar!</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Convertir a formato que esperamos
+        const eventsWithTime = purchases.map(tx => {
+            const valueBNB = parseFloat(ethers.utils.formatEther(tx.value));
+            const ticketCount = Math.round(valueBNB / parseFloat(TICKET_PRICE_BNB));
+            return {
+                player: tx.from,
+                amount: ticketCount || 1,
+                txHash: tx.hash,
+                timestamp: parseInt(tx.timeStamp)
+            };
+        });
+
+        // Limpiar y mostrar
         txList.innerHTML = '';
         displayedTransactions = [];
 
+        // Mostrar del más antiguo al más reciente (para que prepend funcione)
         eventsWithTime.reverse().forEach(tx => {
             addTransaction(tx.player, tx.amount, tx.txHash, tx.timestamp);
         });
 
-        console.log(`✅ Cargadas ${eventsWithTime.length} transacciones recientes`);
+        console.log(`✅ Cargadas ${eventsWithTime.length} transacciones desde BscScan`);
 
     } catch (error) {
-        console.error("Error procesando transacciones:", error);
+        console.error("Error cargando transacciones:", error);
         txList.innerHTML = `
             <div class="empty-state">
-                <span class="empty-icon">�</span>
+                <span class="empty-icon">👀</span>
                 <p>Esperando compras recientes...</p>
                 <p class="empty-subtitle">Las nuevas compras aparecerán aquí</p>
             </div>
@@ -393,11 +364,11 @@ async function loadWinnersHistory() {
 
         if (events.length === 0) {
             winnersList.innerHTML = `
-                <div class="no-winners">
+    < div class="no-winners" >
                     <span class="no-winners-icon">🎰</span>
                     <p>Aún no ha habido ningún sorteo. ¡Sé parte del primer ganador!</p>
-                </div>
-            `;
+                </div >
+    `;
             return;
         }
 
@@ -417,10 +388,10 @@ async function loadWinnersHistory() {
             const winnerCard = document.createElement('div');
             winnerCard.className = 'winner-card';
             winnerCard.innerHTML = `
-                <div class="winner-info">
+    < div class="winner-info" >
                     <span class="winner-round">Ronda #${lotteryId}</span>
                     <span class="winner-address">${winner.slice(0, 8)}...${winner.slice(-6)}</span>
-                </div>
+                </div >
                 <div class="winner-prize">
                     <span class="prize-amount">$${prizeUSD} USD</span>
                     <span class="prize-bnb">(${prizeBNB.toFixed(4)} BNB)</span>
@@ -428,17 +399,17 @@ async function loadWinnersHistory() {
                 <a href="https://bscscan.com/tx/${txHash}" target="_blank" class="verify-btn">
                     ✓ Verificar en BscScan
                 </a>
-            `;
+`;
             winnersList.appendChild(winnerCard);
         }
 
     } catch (error) {
         console.error("Error cargando ganadores:", error);
         winnersList.innerHTML = `
-            <div class="error-state">
-                <p>No se pudo cargar el historial. Verifica directamente en 
-                <a href="https://bscscan.com/address/${CONTRACT_ADDRESS}#events" target="_blank">BscScan</a>.</p>
-            </div>
-        `;
+    < div class="error-state" >
+        <p>No se pudo cargar el historial. Verifica directamente en
+            <a href="https://bscscan.com/address/${CONTRACT_ADDRESS}#events" target="_blank">BscScan</a>.</p>
+            </div >
+    `;
     }
 }
