@@ -1,19 +1,22 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lotería Justa | Tickets $1</title>
-    
+
     <!-- Fuentes Google Fonts: Outfit -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-    
+
     <link rel="stylesheet" href="style.css">
     <!-- Ethers.js CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js" type="application/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"
+        type="application/javascript"></script>
 </head>
+
 <body>
     <div class="background-globes">
         <div class="globe globe-1"></div>
@@ -26,7 +29,8 @@
         <div class="nav-links">
             <a href="#como-funciona">Cómo Funciona</a>
             <a href="#transparencia">Transparencia</a>
-            <a href="https://bscscan.com" target="_blank" class="verify-link">Ver Contrato <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/Binance_Logo.svg" width="16" alt="BSC"></a>
+            <a href="https://bscscan.com" target="_blank" class="verify-link">Ver Contrato <img
+                    src="https://upload.wikimedia.org/wikipedia/commons/e/e1/Binance_Logo.svg" width="16" alt="BSC"></a>
         </div>
         <button id="connectBtn" class="btn-connect">Conectar Billetera</button>
     </nav>
@@ -36,8 +40,9 @@
         <div class="hero-content">
             <div class="badge-secure"><span class="lock-icon">🔒</span> 100% Descentralizado & Seguro</div>
             <h1>La Fortuna a un Clic de Distancia</h1>
-            <p class="hero-sub">Participa en la lotería más justa del mundo. Sin ballenas, sin trucos. Solo tú, el blockchain y la suerte.</p>
-            
+            <p class="hero-sub">Participa en la lotería más justa del mundo. Sin ballenas, sin trucos. Solo tú, el
+                blockchain y la suerte.</p>
+
             <div class="stats-grid">
                 <div class="stat-card glass-card">
                     <span class="stat-label">Tu Oportunidad</span>
@@ -75,28 +80,33 @@
             </div>
 
             <button id="buyBtn" class="btn-primary" disabled>Conecta tu Wallet para Jugar</button>
-            <p class="disclaimer">🔒 El contrato inteligente no tiene acceso a tus fondos, solo recibe el pago del ticket.</p>
+            <p class="disclaimer">🔒 El contrato inteligente no tiene acceso a tus fondos, solo recibe el pago del
+                ticket.</p>
         </div>
     </header>
 
     <!-- Sección de Pasos -->
+    <!-- Sección de Pasos (Viral & Explicativa) -->
     <section class="steps-section" id="como-funciona">
-        <h2>Transparencia Radical</h2>
+        <h2>💎 ¿Por qué esta Lotería es Diferente?</h2>
         <div class="steps-grid">
             <div class="step-item">
-                <div class="step-number">01</div>
-                <h3>Conecta & Compra</h3>
-                <p>Usa MetaMask o TrustWallet. Envía $1 BNB por ticket. El límite de 20 tickets asegura que nadie compre el 100% del pozo.</p>
+                <div class="step-number">🤖</div>
+                <h3>100% Descentralizada</h3>
+                <p>Sin intervención humana. Un <strong>Smart Contract</strong> verificado gestiona los fondos. Ni
+                    siquiera nosotros podemos tocar el dinero del pozo.</p>
             </div>
             <div class="step-item">
-                <div class="step-number">02</div>
-                <h3>Espera el Sorteo</h3>
-                <p>El contrato acumula los fondos automáticamente. Si el pozo llega a $100, se activa la cuenta regresiva de 3 días.</p>
+                <div class="step-number">💸</div>
+                <h3>Premios Sin Límite</h3>
+                <p>Por solo <strong>$1 USD</strong>, entras a un sorteo donde el pozo crece sin tope. Si nadie gana hoy,
+                    ¡se acumula para un premio millonario mañana!</p>
             </div>
             <div class="step-item">
-                <div class="step-number">03</div>
-                <h3>Pago Automático</h3>
-                <p>¡Sin reclamar! Si ganas, el contrato inteligente envía el 80% del pozo directo a tu billetera al instante.</p>
+                <div class="step-number">⚖️</div>
+                <h3>Justicia Garantizada</h3>
+                <p>El ganador se elige por matemáticas (Hash de Bloque), no por capricho. El pago es <strong>automático
+                        e instantáneo</strong> a tu billetera.</p>
             </div>
         </div>
     </section>
@@ -123,4 +133,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>
