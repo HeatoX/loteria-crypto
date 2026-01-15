@@ -85,28 +85,159 @@
         </div>
     </header>
 
-    <!-- Sección de Pasos -->
-    <!-- Sección de Pasos (Viral & Explicativa) -->
+    <!-- ============================================ -->
+    <!-- SECCIÓN: CÓMO FUNCIONA (Versión Profesional) -->
+    <!-- ============================================ -->
     <section class="steps-section" id="como-funciona">
-        <h2>💎 ¿Por qué esta Lotería es Diferente?</h2>
-        <div class="steps-grid">
-            <div class="step-item">
-                <div class="step-number">🤖</div>
-                <h3>100% Descentralizada</h3>
-                <p>Sin intervención humana. Un <strong>Smart Contract</strong> verificado gestiona los fondos. Ni
-                    siquiera nosotros podemos tocar el dinero del pozo.</p>
+        <h2>� Cómo Funciona FairChance: Todo lo que Necesitas Saber</h2>
+        <p class="section-intro">Esta no es una lotería cualquiera. Es un sistema financiero autónomo, transparente e
+            incorruptible. Aquí te explicamos cada detalle.</p>
+
+        <div class="info-blocks">
+            <!-- Bloque 1: Descentralización -->
+            <div class="info-block">
+                <div class="block-header">
+                    <span class="block-icon">🌐</span>
+                    <h3>¿Qué significa "Descentralizado"?</h3>
+                </div>
+                <div class="block-content">
+                    <p>Significa que <strong>no hay un servidor central ni una empresa controlando el dinero</strong>.
+                        Todo el sistema vive en la Binance Smart Chain, una red global de miles de computadoras (nodos)
+                        que verifican cada transacción.</p>
+                    <ul>
+                        <li>✅ <strong>Sin intermediarios:</strong> No hay bancos, no hay empresas, no hay empleados.
+                        </li>
+                        <li>✅ <strong>Inmutable:</strong> Una vez que las reglas están en el contrato, nadie puede
+                            cambiarlas. Ni siquiera nosotros.</li>
+                        <li>✅ <strong>24/7:</strong> El contrato funciona automáticamente las 24 horas, los 365 días del
+                            año.</li>
+                    </ul>
+                    <p class="highlight-box">💡 <strong>En términos simples:</strong> Tu dinero está custodiado por
+                        matemáticas, no por personas.</p>
+                </div>
             </div>
-            <div class="step-item">
-                <div class="step-number">💸</div>
-                <h3>Premios Sin Límite</h3>
-                <p>Por solo <strong>$1 USD</strong>, entras a un sorteo donde el pozo crece sin tope. Si nadie gana hoy,
-                    ¡se acumula para un premio millonario mañana!</p>
+
+            <!-- Bloque 2: Mecánica del Juego -->
+            <div class="info-block">
+                <div class="block-header">
+                    <span class="block-icon">🎰</span>
+                    <h3>¿Cómo Funciona el Sorteo?</h3>
+                </div>
+                <div class="block-content">
+                    <p>El sistema opera en <strong>rondas de 3 días</strong>. Durante ese tiempo, cualquier persona
+                        puede comprar tickets. Al finalizar:</p>
+                    <ol>
+                        <li><strong>Si el pozo alcanzó el mínimo ($100 USD):</strong> El contrato elige un ganador
+                            automáticamente.</li>
+                        <li><strong>Si NO se alcanzó el mínimo:</strong> La ronda se extiende otros 3 días y tu ticket
+                            sigue participando. ¡No pierdes tu entrada!</li>
+                    </ol>
+                    <p class="highlight-box">🎯 <strong>Importante:</strong> A diferencia de las loterías tradicionales
+                        donde "nadie gana" si no aciertan los números, aquí <strong>SIEMPRE hay un ganador</strong>. El
+                        contrato selecciona una wallet participante al azar.</p>
+                </div>
             </div>
-            <div class="step-item">
-                <div class="step-number">⚖️</div>
-                <h3>Justicia Garantizada</h3>
-                <p>El ganador se elige por matemáticas (Hash de Bloque), no por capricho. El pago es <strong>automático
-                        e instantáneo</strong> a tu billetera.</p>
+
+            <!-- Bloque 3: Selección del Ganador -->
+            <div class="info-block">
+                <div class="block-header">
+                    <span class="block-icon">🎲</span>
+                    <h3>¿Cómo se Elige al Ganador?</h3>
+                </div>
+                <div class="block-content">
+                    <p>Utilizamos <strong>aleatoriedad criptográfica</strong> basada en datos de la blockchain que nadie
+                        puede predecir:</p>
+                    <ul>
+                        <li>🔢 <strong>Block.prevrandao:</strong> Un número aleatorio generado por la red de
+                            Ethereum/BSC.</li>
+                        <li>⏰ <strong>Block.timestamp:</strong> El momento exacto (al segundo) en que se ejecuta el
+                            sorteo.</li>
+                        <li>👥 <strong>Número de participantes:</strong> Mientras más jugadores, más entropía.</li>
+                    </ul>
+                    <p>Estos valores se combinan matemáticamente (hash Keccak256) para generar un índice aleatorio que
+                        selecciona al ganador. <strong>Ni siquiera los mineros pueden manipular el resultado</strong>
+                        porque el sorteo se ejecuta después de que el bloque ya está confirmado.</p>
+                </div>
+            </div>
+
+            <!-- Bloque 4: Premios -->
+            <div class="info-block">
+                <div class="block-header">
+                    <span class="block-icon">💰</span>
+                    <h3>¿Cuánto Puedo Ganar?</h3>
+                </div>
+                <div class="block-content">
+                    <div class="prize-table">
+                        <div class="prize-row">
+                            <span class="prize-label">💵 Premio Mínimo Garantizado:</span>
+                            <span class="prize-value">$80 USD</span>
+                            <span class="prize-note">(80% de $100 mínimo)</span>
+                        </div>
+                        <div class="prize-row">
+                            <span class="prize-label">🚀 Premio Máximo:</span>
+                            <span class="prize-value">¡SIN LÍMITE!</span>
+                            <span class="prize-note">(Depende de cuánta gente participe)</span>
+                        </div>
+                    </div>
+                    <p>El <strong>80% del pozo total</strong> va directo al ganador. El 20% restante cubre los costos
+                        operativos y desarrollo del proyecto.</p>
+                    <p class="example-box">📊 <strong>Ejemplo:</strong> Si participan 500 personas con $1 cada una =
+                        Pozo de $500. El ganador se lleva <strong>$400 USD</strong> instantáneamente.</p>
+                </div>
+            </div>
+
+            <!-- Bloque 5: Seguridad -->
+            <div class="info-block">
+                <div class="block-header">
+                    <span class="block-icon">🔐</span>
+                    <h3>¿Es Seguro? ¿Puedo Confiar?</h3>
+                </div>
+                <div class="block-content">
+                    <p><strong>No tienes que confiar en nosotros. Confía en el código.</strong></p>
+                    <ul>
+                        <li>📜 <strong>Código Abierto:</strong> Puedes leer el contrato completo en <a
+                                href="https://bscscan.com/address/0x59d2A5a1518f331550d680A8C777A1c5F0F4D38d#code"
+                                target="_blank">BscScan</a>.</li>
+                        <li>🔒 <strong>Sin Acceso a Fondos:</strong> El dinero del pozo está encerrado en el contrato.
+                            Nadie tiene una "llave secreta" para retirarlo.</li>
+                        <li>⚡ <strong>Pago Automático:</strong> El ganador recibe su premio en el mismo segundo que el
+                            sorteo se ejecuta. Sin formularios, sin esperas, sin aprobaciones.</li>
+                        <li>🛡️ <strong>Anti-Ballenas:</strong> Máximo 20 tickets por persona para que nadie monopolice
+                            el juego.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Bloque 6: Paso a Paso -->
+            <div class="info-block full-width">
+                <div class="block-header">
+                    <span class="block-icon">📝</span>
+                    <h3>Guía Rápida: Cómo Participar</h3>
+                </div>
+                <div class="block-content steps-flow">
+                    <div class="flow-step">
+                        <span class="step-num">1</span>
+                        <p><strong>Conecta tu Wallet</strong><br>MetaMask, TrustWallet o cualquier wallet compatible con
+                            BSC.</p>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-step">
+                        <span class="step-num">2</span>
+                        <p><strong>Elige tus Tickets</strong><br>De 1 a 20 tickets. Más tickets = más oportunidades.</p>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-step">
+                        <span class="step-num">3</span>
+                        <p><strong>Confirma y Espera</strong><br>Tu wallet te pedirá firmar. Luego, solo espera al
+                            sorteo.</p>
+                    </div>
+                    <div class="flow-arrow">→</div>
+                    <div class="flow-step winner-step">
+                        <span class="step-num">🏆</span>
+                        <p><strong>¡Gana!</strong><br>Si eres el ganador, el premio llega a tu wallet automáticamente.
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -127,10 +258,9 @@
     <section class="partners-section">
         <p class="partners-title">Compatible con las mejores wallets y redes:</p>
         <div class="partners-logos">
-            <img src="https://cryptologos.cc/logos/bnb-bnb-logo.svg?v=040" alt="Binance Smart Chain" title="BNB Chain">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg" alt="MetaMask"
-                title="MetaMask">
-            <img src="https://trustwallet.com/assets/images/media/assets/trust_logotype_blue.svg" alt="Trust Wallet"
+            <img src="https://cryptologos.cc/logos/bnb-bnb-logo.png?v=040" alt="BNB Chain" title="BNB Chain">
+            <img src="https://cryptologos.cc/logos/metamask-fox.svg" alt="MetaMask" title="MetaMask">
+            <img src="https://cryptologos.cc/logos/trust-wallet-token-twt-logo.svg?v=040" alt="Trust Wallet"
                 title="Trust Wallet">
         </div>
     </section>

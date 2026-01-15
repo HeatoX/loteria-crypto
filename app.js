@@ -1,10 +1,23 @@
-// Configuración básica
-const CONTRACT_ADDRESS = "0x0000000000000000000000000000000000000000"; // Reemplazar despues del despliegue
-const TICKET_PRICE_USD = 1;
-// Aproximadamente 0.003 BNB por $1 (Valor fijo para la demo, en prod se usaría un oráculo o API)
-const BNB_PER_USD = 0.003; 
+// ============================================
+// FairChance Lottery - Frontend Conectado a BSC
+// ============================================
 
-let provider, signer, contract;
+// --- CONFIGURACIÓN DEL CONTRATO ---
+const CONTRACT_ADDRESS = "0x59d2A5a1518f331550d680A8C777A1c5F0F4D38d"; // Tu contrato en BSC Mainnet
+const TICKET_PRICE_BNB = "0.002"; // Precio en BNB (~$1 USD)
+const BNB_PRICE_USD = 600; // Precio aproximado de BNB (actualizar según mercado)
+
+// ABI mínimo para leer el contrato
+const CONTRACT_ABI = [
+    "function ticketPrice() view returns (uint256)",
+    "function lotteryEndTime() view returns (uint256)",
+    "function minPoolToDraw() view returns (uint256)",
+    "function lotteryId() view returns (uint256)",
+    "function buyTickets() payable",
+    "event NewTicketBought(address indexed player, uint256 amount)"
+];
+
+let provider, signer, contract, readOnlyProvider;
 let userAddress = null;
 
 // Elementos del DOM
@@ -16,8 +29,58 @@ const btnPlus = document.getElementById('btnPlus');
 const totalCostEl = document.getElementById('totalCost');
 const jackpotEl = document.getElementById('jackpotAmount');
 const txList = document.getElementById('txList');
+const countdownEl = document.getElementById('countdown');
 
-// Lógica de Conexión
+// --- INICIALIZACIÓN: Leer balance REAL del contrato ---
+async function initializeRealData() {
+    try {
+        // Conectar a BSC Mainnet (lectura pública, sin wallet)
+        readOnlyProvider = new ethers.providers.JsonRpcProvider("https://bsc-dataseed1.binance.org/");
+
+        // Leer balance del contrato
+        const balanceWei = await readOnlyProvider.getBalance(CONTRACT_ADDRESS);
+        const balanceBNB = parseFloat(ethers.utils.formatEther(balanceWei));
+        const balanceUSD = (balanceBNB * BNB_PRICE_USD).toFixed(2);
+
+        // Actualizar UI con valor REAL
+        jackpotEl.innerText = '$' + balanceUSD;
+
+        console.log("Pozo Real:", balanceBNB, "BNB (~$" + balanceUSD + " USD)");
+
+        // Leer tiempo restante del contrato
+        const readContract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, readOnlyProvider);
+        const endTime = await readContract.lotteryEndTime();
+        startCountdown(endTime.toNumber());
+
+    } catch (error) {
+        console.error("Error leyendo blockchain:", error);
+        jackpotEl.innerText = '$0.00';
+    }
+}
+
+// --- COUNTDOWN REAL ---
+function startCountdown(endTimestamp) {
+    const updateTimer = () => {
+        const now = Math.floor(Date.now() / 1000);
+        let remaining = endTimestamp - now;
+
+        if (remaining <= 0) {
+            countdownEl.innerText = "¡Sorteo Pendiente!";
+            return;
+        }
+
+        const hours = Math.floor(remaining / 3600);
+        const minutes = Math.floor((remaining % 3600) / 60);
+        const seconds = remaining % 60;
+
+        countdownEl.innerText = `${hours}h : ${String(minutes).padStart(2, '0')}m : ${String(seconds).padStart(2, '0')}s`;
+    };
+
+    updateTimer();
+    setInterval(updateTimer, 1000);
+}
+
+// --- CONEXIÓN DE WALLET ---
 connectBtn.addEventListener('click', async () => {
     if (window.ethereum) {
         try {
@@ -25,13 +88,16 @@ connectBtn.addEventListener('click', async () => {
             await provider.send("eth_requestAccounts", []);
             signer = provider.getSigner();
             userAddress = await signer.getAddress();
-            
+
+            // Crear instancia del contrato con signer
+            contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
             // UI Update
             connectBtn.innerText = userAddress.slice(0, 6) + "..." + userAddress.slice(-4);
             connectBtn.classList.add('connected');
             buyBtn.disabled = false;
-            buyBtn.innerText = "Comprar Tickets";
-            
+            buyBtn.innerText = "🎟️ Comprar Tickets";
+
             console.log("Conectado:", userAddress);
         } catch (error) {
             console.error(error);
@@ -42,7 +108,7 @@ connectBtn.addEventListener('click', async () => {
     }
 });
 
-// Control de Tickets
+// --- CONTROL DE TICKETS ---
 btnMinus.addEventListener('click', () => {
     let val = parseInt(ticketInput.value);
     if (val > 1) {
@@ -61,54 +127,69 @@ btnPlus.addEventListener('click', () => {
 
 function updateCost() {
     let count = parseInt(ticketInput.value);
-    let totalBNB = (count * TICKET_PRICE_USD * BNB_PER_USD).toFixed(3);
+    let totalBNB = (count * parseFloat(TICKET_PRICE_BNB)).toFixed(4);
     totalCostEl.innerText = totalBNB;
 }
 
-// Simulación de Compra (Mock para Demo)
+// --- COMPRA REAL DE TICKETS ---
 buyBtn.addEventListener('click', async () => {
-    if (!userAddress) return;
-    
-    // Aquí iría la llamada real al contrato:
-    // await contract.buyTickets({ value: ethers.utils.parseEther(totalBNB) })
-    
-    // Efecto visual de carga
-    buyBtn.innerText = "Procesando...";
+    if (!userAddress || !contract) {
+        alert("Primero conecta tu billetera.");
+        return;
+    }
+
+    const ticketCount = parseInt(ticketInput.value);
+    const totalBNB = (ticketCount * parseFloat(TICKET_PRICE_BNB)).toFixed(4);
+
+    buyBtn.innerText = "⏳ Procesando...";
     buyBtn.disabled = true;
 
-    setTimeout(() => {
-        alert("¡Transacción Simulada Exitosa! \n\nEn la versión real, tu billetera firmaría la compra.");
-        
-        // Añadir al feed falso
-        addFakeTransaction(userAddress, ticketInput.value);
-        
-        // Reset
-        buyBtn.innerText = "Comprar Tickets";
-        buyBtn.disabled = false;
-    }, 2000);
+    try {
+        // Llamada REAL al contrato
+        const tx = await contract.buyTickets({
+            value: ethers.utils.parseEther(totalBNB)
+        });
+
+        buyBtn.innerText = "⛓️ Confirmando...";
+        await tx.wait();
+
+        alert(`¡Compra Exitosa! 🎉\n\nCompraste ${ticketCount} ticket(s).\nTx: ${tx.hash.slice(0, 20)}...`);
+
+        // Actualizar pozo
+        initializeRealData();
+
+        // Añadir al feed
+        addTransaction(userAddress, ticketCount, tx.hash);
+
+    } catch (error) {
+        console.error(error);
+        if (error.code === 4001) {
+            alert("Transacción cancelada por el usuario.");
+        } else {
+            alert("Error en la transacción: " + (error.reason || error.message));
+        }
+    }
+
+    buyBtn.innerText = "🎟️ Comprar Tickets";
+    buyBtn.disabled = false;
 });
 
-// Utilidades Mock
-function addFakeTransaction(addr, tickets) {
+// --- FEED DE TRANSACCIONES ---
+function addTransaction(addr, tickets, txHash) {
     const div = document.createElement('div');
     div.className = 'tx-item';
     div.innerHTML = `
-        <span class="tx-hash">Ticket #${Math.floor(Math.random()*1000)}</span>
-        <span>${addr.slice(0,6)}... compró ${tickets} ticket(s)</span>
+        <a href="https://bscscan.com/tx/${txHash}" target="_blank" class="tx-hash">Ver Tx ↗</a>
+        <span>${addr.slice(0, 6)}...${addr.slice(-4)} compró ${tickets} ticket(s)</span>
     `;
-    
-    // Eliminar estado vacío si existe
-    if(txList.querySelector('.empty-state')) {
+
+    if (txList.querySelector('.empty-state')) {
         txList.innerHTML = '';
     }
-    
+
     txList.prepend(div);
-    
-    // Actualizar pozo falso
-    let currentJackpot = parseFloat(jackpotEl.innerText.replace('$',''));
-    jackpotEl.innerText = '$' + (currentJackpot + (tickets * 1)).toFixed(2);
 }
 
-// Inicializar Mock Data
+// --- INICIALIZAR AL CARGAR ---
 updateCost();
-jackpotEl.innerText = '$145.00'; // Valor inicial atractivo
+initializeRealData();

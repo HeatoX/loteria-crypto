@@ -425,3 +425,198 @@ footer {
     filter: grayscale(0%) brightness(1);
     opacity: 1;
 }
+
+/* ============================================ */
+/* SECCIÓN: Bloques de Información Profesional */
+/* ============================================ */
+
+.section-intro {
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+    max-width: 700px;
+    margin: 0 auto 2rem;
+}
+
+.info-blocks {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.info-block {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    backdrop-filter: blur(5px);
+}
+
+.info-block.full-width {
+    grid-column: 1 / -1;
+}
+
+.block-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 0.75rem;
+}
+
+.block-icon {
+    font-size: 1.8rem;
+}
+
+.block-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: white;
+}
+
+.block-content {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.7;
+}
+
+.block-content ul,
+.block-content ol {
+    padding-left: 1.2rem;
+    margin: 1rem 0;
+}
+
+.block-content li {
+    margin-bottom: 0.5rem;
+}
+
+.block-content a {
+    color: var(--accent-glow);
+    text-decoration: underline;
+}
+
+.highlight-box {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 3px solid var(--accent-color);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.9rem;
+}
+
+.example-box {
+    background: rgba(251, 191, 36, 0.1);
+    border-left: 3px solid var(--gold);
+    padding: 0.8rem 1rem;
+    margin: 1rem 0;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.9rem;
+}
+
+/* Tabla de Premios */
+.prize-table {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    padding: 1rem;
+    margin: 1rem 0;
+}
+
+.prize-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.prize-row:last-child {
+    border-bottom: none;
+}
+
+.prize-label {
+    font-weight: 500;
+}
+
+.prize-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--gold);
+}
+
+.prize-note {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    width: 100%;
+    text-align: right;
+}
+
+/* Flujo de Pasos */
+.steps-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1rem 0;
+}
+
+.flow-step {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 1.2rem;
+    text-align: center;
+    min-width: 150px;
+    flex: 1;
+    max-width: 200px;
+}
+
+.flow-step.winner-step {
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.step-num {
+    display: inline-block;
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+    background: var(--accent-color);
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 1.2rem;
+    margin-bottom: 0.75rem;
+}
+
+.flow-step p {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.flow-arrow {
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .info-blocks {
+        grid-template-columns: 1fr;
+    }
+
+    .steps-flow {
+        flex-direction: column;
+    }
+
+    .flow-arrow {
+        transform: rotate(90deg);
+    }
+
+    .flow-step {
+        max-width: 100%;
+    }
+}
