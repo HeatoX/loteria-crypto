@@ -241,42 +241,82 @@ async function loadRecentTransactions() {
         </div>
     `;
 
-    try {
-        const provider = new ethers.providers.JsonRpcProvider("https://bsc-dataseed1.binance.org/");
-        const contract = new ethers.Contract(CONTRACT_ADDRESS, [
-            "event NewTicketBought(address indexed player, uint256 amount)"
-        ], provider);
+    // Lista de RPCs de BSC (fallback)
+    const rpcEndpoints = [
+        "https://bsc-dataseed1.binance.org/",
+        "https://bsc-dataseed2.binance.org/",
+        "https://bsc-dataseed3.binance.org/",
+        "https://bsc-dataseed4.binance.org/"
+    ];
 
-        // Buscar eventos desde los últimos ~50000 bloques (~2 días)
-        const currentBlock = await provider.getBlockNumber();
-        const fromBlock = Math.max(0, currentBlock - 50000);
+    let provider = null;
+    let events = [];
 
-        const filter = contract.filters.NewTicketBought();
-        const events = await contract.queryFilter(filter, fromBlock, 'latest');
+    // Intentar con diferentes RPCs
+    for (const rpc of rpcEndpoints) {
+        try {
+            provider = new ethers.providers.JsonRpcProvider(rpc);
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, [
+                "event NewTicketBought(address indexed player, uint256 amount)"
+            ], provider);
 
-        if (events.length === 0) {
-            txList.innerHTML = `
-                <div class="empty-state">
-                    <span class="empty-icon">👀</span>
-                    <p>Esperando la primera compra...</p>
-                    <p class="empty-subtitle">¡Sé el primero en participar!</p>
-                </div>
-            `;
-            return;
+            // Buscar en lotes más pequeños (5000 bloques = ~4 horas)
+            const currentBlock = await provider.getBlockNumber();
+            const filter = contract.filters.NewTicketBought();
+
+            // Buscar primero en los últimos 5000 bloques
+            let fromBlock = Math.max(0, currentBlock - 5000);
+            events = await contract.queryFilter(filter, fromBlock, 'latest');
+
+            // Si no hay eventos, buscar más atrás (hasta 20000 bloques)
+            if (events.length === 0) {
+                fromBlock = Math.max(0, currentBlock - 20000);
+                events = await contract.queryFilter(filter, fromBlock, currentBlock - 5000);
+            }
+
+            console.log(`RPC ${rpc} funcionó. Encontrados ${events.length} eventos.`);
+            break; // Salir del loop si funcionó
+
+        } catch (error) {
+            console.warn(`RPC ${rpc} falló:`, error.message);
+            continue; // Probar siguiente RPC
         }
+    }
 
+    // Si no encontramos eventos después de todos los intentos
+    if (events.length === 0) {
+        txList.innerHTML = `
+            <div class="empty-state">
+                <span class="empty-icon">👀</span>
+                <p>Esperando la primera compra...</p>
+                <p class="empty-subtitle">¡Sé el primero en participar!</p>
+            </div>
+        `;
+        return;
+    }
+
+    try {
         // Ordenar por bloque (más reciente primero) y tomar últimos 10
         const sortedEvents = events.sort((a, b) => b.blockNumber - a.blockNumber).slice(0, 10);
 
         // Obtener timestamps de los bloques
         const eventsWithTime = await Promise.all(sortedEvents.map(async (event) => {
-            const block = await provider.getBlock(event.blockNumber);
-            return {
-                player: event.args.player,
-                amount: event.args.amount.toNumber(),
-                txHash: event.transactionHash,
-                timestamp: block.timestamp
-            };
+            try {
+                const block = await provider.getBlock(event.blockNumber);
+                return {
+                    player: event.args.player,
+                    amount: event.args.amount.toNumber(),
+                    txHash: event.transactionHash,
+                    timestamp: block ? block.timestamp : Math.floor(Date.now() / 1000)
+                };
+            } catch (e) {
+                return {
+                    player: event.args.player,
+                    amount: event.args.amount.toNumber(),
+                    txHash: event.transactionHash,
+                    timestamp: Math.floor(Date.now() / 1000)
+                };
+            }
         }));
 
         // Limpiar y mostrar (del más antiguo al más nuevo para que prepend funcione correctamente)
@@ -287,14 +327,15 @@ async function loadRecentTransactions() {
             addTransaction(tx.player, tx.amount, tx.txHash, tx.timestamp);
         });
 
-        console.log(`Cargadas ${eventsWithTime.length} transacciones recientes`);
+        console.log(`✅ Cargadas ${eventsWithTime.length} transacciones recientes`);
 
     } catch (error) {
-        console.error("Error cargando transacciones:", error);
+        console.error("Error procesando transacciones:", error);
         txList.innerHTML = `
             <div class="empty-state">
-                <span class="empty-icon">📡</span>
-                <p>Conectando con la blockchain...</p>
+                <span class="empty-icon">�</span>
+                <p>Esperando compras recientes...</p>
+                <p class="empty-subtitle">Las nuevas compras aparecerán aquí</p>
             </div>
         `;
     }
