@@ -261,67 +261,96 @@ function getRelativeTime(timestamp) {
     return `Hace ${Math.floor(diff / 86400)}d`;
 }
 
-// --- CARGAR ÚLTIMAS 10 TRANSACCIONES (desde localStorage primero) ---
+// --- CARGAR ÚLTIMAS TRANSACCIONES (RPC PÚBLICO) ---
 async function loadRecentTransactions() {
-    // Primero intentar cargar desde localStorage (muy rápido y confiable)
-    const storedTransactions = loadTransactionsFromStorage();
-
-    if (storedTransactions.length > 0) {
-        console.log(`📦 Cargando ${storedTransactions.length} transacciones desde localStorage`);
-        txList.innerHTML = '';
-        displayedTransactions = [];
-
-        // Mostrar del más antiguo al más nuevo
-        storedTransactions.reverse().forEach(tx => {
-            addTransaction(tx.addr, tx.tickets, tx.txHash, tx.timestamp, false);
-        });
-
-        console.log('✅ Transacciones cargadas desde localStorage');
-        return; // No intentar cargar desde blockchain si ya tenemos datos
-    }
-
-    // Si no hay datos locales, mostrar mensaje de espera
-    txList.innerHTML = `
-        <div class="empty-state">
-            <span class="empty-icon">👀</span>
-            <p>Esperando la primera compra...</p>
-            <p class="empty-subtitle">¡Sé el primero en participar!</p>
-        </div>
-    `;
-
-    console.log('No hay transacciones guardadas localmente');
-}
-
-// --- ESCUCHAR NUEVAS TRANSACCIONES EN TIEMPO REAL ---
-async function listenForNewTransactions() {
     try {
-        // Usar WebSocket para eventos en tiempo real
-        const wsProvider = new ethers.providers.WebSocketProvider("wss://bsc-ws-node.nariox.org:443");
+        if (!readOnlyProvider) {
+            readOnlyProvider = new ethers.providers.JsonRpcProvider("https://bsc-dataseed1.binance.org/");
+        }
+
         const contract = new ethers.Contract(CONTRACT_ADDRESS, [
             "event NewTicketBought(address indexed player, uint256 amount)"
-        ], wsProvider);
+        ], readOnlyProvider);
 
-        contract.on("NewTicketBought", (player, amount, event) => {
-            console.log("🎫 Nueva compra detectada:", player, amount.toNumber());
-            addTransaction(player, amount.toNumber(), event.transactionHash);
-            // Actualizar el pozo también
-            initializeRealData();
-        });
+        // Obtener bloque actual
+        const currentBlock = await readOnlyProvider.getBlockNumber();
+        // Buscar en los últimos 2000 bloques (aprox 1.5 horas) para asegurar velocidad y evitar errores
+        const fromBlock = Math.max(0, currentBlock - 2000);
 
-        console.log("✅ Escuchando transacciones en tiempo real...");
+        console.log(`🔄 Buscando tickets desde bloque ${fromBlock}...`);
+
+        const filter = contract.filters.NewTicketBought();
+        const events = await contract.queryFilter(filter, fromBlock, 'latest');
+
+        if (events.length === 0) {
+            // Si no hay eventos recientes en blockchain, intentar mostrar del localStorage como backup
+            const stored = loadTransactionsFromStorage();
+            if (stored.length === 0 && txList.children.length === 0) {
+                txList.innerHTML = `
+                    <div class="empty-state">
+                        <span class="empty-icon">👀</span>
+                        <p>Esperando la primera compra...</p>
+                    </div>
+                `;
+            } else if (stored.length > 0 && txList.children.length === 0) {
+                // Cargar backup local si la blockchain no dio nada reciente pero tenemos historial
+                stored.reverse().forEach(tx => addTransaction(tx.addr, tx.tickets, tx.txHash, tx.timestamp, false));
+            }
+            return;
+        }
+
+        // Procesar eventos de la blockchain
+        // Ordenar por bloque (más reciente al final, para luego invertir o añadir en orden)
+        const activeHashes = new Set();
+
+        // Limpiar "Empty state" si existe
+        if (txList.querySelector('.empty-state')) {
+            txList.innerHTML = '';
+        }
+
+        for (const event of events) {
+            const txHash = event.transactionHash;
+            activeHashes.add(txHash);
+
+            // Si ya se muestra, saltar
+            if (displayedTransactions.includes(txHash)) continue;
+
+            const player = event.args.player;
+            const amount = event.args.amount.toNumber();
+
+            // Intentar obtener timestamp real del bloque (puede ser lento para muchos eventos, 
+            // para optimizar usamos Date.now() si es muy reciente, o null y dejamos que addTransaction maneje "Hace poco")
+            // Para simplicidad en UX masiva: añadirlo como "Reciente"
+            addTransaction(player, amount, txHash, null, true);
+        }
+
+        console.log(`✅ ${events.length} transacciones encontradas en blockchain.`);
 
     } catch (error) {
-        console.error("WebSocket no disponible, usando polling:", error);
-        // Fallback: refrescar cada 30 segundos
-        setInterval(loadRecentTransactions, 30000);
+        console.error("Error cargando transacciones RPC:", error);
     }
+}
+
+// --- ESCUCHAR NUEVAS TRANSACCIONES (POLLING ROBUSTO) ---
+// WebSockets pueden ser inestables en RPCs públicos gratuitos. Usamos Polling cada 15s.
+function startTransactionPolling() {
+    // Carga inicial
+    loadRecentTransactions();
+
+    // Polling cada 10 segundos
+    setInterval(() => {
+        loadRecentTransactions();
+        // También actualizar el pozo
+        initializeRealData();
+    }, 10000);
+
+    console.log("🔄 Sistema de actualización en vivo activado (Polling 10s)");
 }
 
 // --- INICIALIZAR AL CARGAR ---
 updateCost();
 initializeRealData();
-loadRecentTransactions();
-listenForNewTransactions();
+startTransactionPolling(); // Inicia el ciclo de carga y escucha
 loadWinnersHistory();
 
 // --- CARGAR HISTORIAL DE GANADORES ---
