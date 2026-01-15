@@ -275,11 +275,11 @@ async function loadRecentTransactions() {
 
         // Obtener bloque actual
         const currentBlock = await readOnlyProvider.getBlockNumber();
-        // Buscar en los últimos 10000 bloques (aprox 8 horas)
+        // Buscar en los últimos 30000 bloques (aprox 24 horas)
         // PublicNode permite rangos más amplios que los nodos de Binance
-        const fromBlock = Math.max(0, currentBlock - 10000);
+        const fromBlock = Math.max(0, currentBlock - 30000);
 
-        console.log(`🔄 Buscando tickets desde bloque ${fromBlock} (Rango: 10000)...`);
+        console.log(`🔄 Buscando tickets desde bloque ${fromBlock} (Rango: 30000)...`);
 
         const filter = contract.filters.NewTicketBought();
         const events = await contract.queryFilter(filter, fromBlock, 'latest');
