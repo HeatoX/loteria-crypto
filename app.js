@@ -260,21 +260,24 @@ async function loadRecentTransactions() {
                 "event NewTicketBought(address indexed player, uint256 amount)"
             ], provider);
 
-            // Buscar en lotes más pequeños (5000 bloques = ~4 horas)
+            // Buscar en lotes más grandes (10000 bloques = ~8 horas)
             const currentBlock = await provider.getBlockNumber();
+            console.log(`Bloque actual: ${currentBlock}`);
             const filter = contract.filters.NewTicketBought();
 
-            // Buscar primero en los últimos 5000 bloques
-            let fromBlock = Math.max(0, currentBlock - 5000);
+            // Buscar primero en los últimos 10000 bloques 
+            let fromBlock = Math.max(0, currentBlock - 10000);
+            console.log(`Buscando desde bloque ${fromBlock} hasta ${currentBlock}...`);
             events = await contract.queryFilter(filter, fromBlock, 'latest');
 
-            // Si no hay eventos, buscar más atrás (hasta 20000 bloques)
+            // Si no hay eventos, buscar más atrás (hasta 50000 bloques ~2 días)
             if (events.length === 0) {
-                fromBlock = Math.max(0, currentBlock - 20000);
-                events = await contract.queryFilter(filter, fromBlock, currentBlock - 5000);
+                console.log(`No hay eventos recientes, buscando más atrás...`);
+                fromBlock = Math.max(0, currentBlock - 50000);
+                events = await contract.queryFilter(filter, fromBlock, currentBlock - 10000);
             }
 
-            console.log(`RPC ${rpc} funcionó. Encontrados ${events.length} eventos.`);
+            console.log(`RPC ${rpc}: Encontrados ${events.length} eventos.`);
             break; // Salir del loop si funcionó
 
         } catch (error) {
