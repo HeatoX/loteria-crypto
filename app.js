@@ -233,15 +233,23 @@ function getRelativeTime(timestamp) {
 
 // --- CARGAR ÚLTIMAS 10 TRANSACCIONES DESDE BLOCKCHAIN ---
 async function loadRecentTransactions() {
+    // Mostrar estado de carga
+    txList.innerHTML = `
+        <div class="empty-state">
+            <span class="empty-icon">🔄</span>
+            <p>Cargando actividad reciente...</p>
+        </div>
+    `;
+
     try {
         const provider = new ethers.providers.JsonRpcProvider("https://bsc-dataseed1.binance.org/");
         const contract = new ethers.Contract(CONTRACT_ADDRESS, [
             "event NewTicketBought(address indexed player, uint256 amount)"
         ], provider);
 
-        // Buscar eventos desde los últimos ~5000 bloques (~4 horas)
+        // Buscar eventos desde los últimos ~50000 bloques (~2 días)
         const currentBlock = await provider.getBlockNumber();
-        const fromBlock = Math.max(0, currentBlock - 5000);
+        const fromBlock = Math.max(0, currentBlock - 50000);
 
         const filter = contract.filters.NewTicketBought();
         const events = await contract.queryFilter(filter, fromBlock, 'latest');
