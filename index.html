@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lotería Justa | Tickets $1</title>
+    
+    <!-- Fuentes Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+    <!-- Ethers.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js" type="application/javascript"></script>
+</head>
+<body>
+    <div class="background-globes">
+        <div class="globe globe-1"></div>
+        <div class="globe globe-2"></div>
+    </div>
+
+    <!-- Navegación -->
+    <nav class="glass-nav">
+        <div class="logo">Fair<span class="highlight">Chance</span></div>
+        <div class="nav-links">
+            <a href="#como-funciona">Cómo Funciona</a>
+            <a href="#transparencia">Transparencia</a>
+            <a href="https://bscscan.com" target="_blank" class="verify-link">Ver Contrato <img src="https://upload.wikimedia.org/wikipedia/commons/e/e1/Binance_Logo.svg" width="16" alt="BSC"></a>
+        </div>
+        <button id="connectBtn" class="btn-connect">Conectar Billetera</button>
+    </nav>
+
+    <!-- Héroe Principal -->
+    <header class="hero-section">
+        <div class="hero-content">
+            <div class="badge-secure"><span class="lock-icon">🔒</span> 100% Descentralizado & Seguro</div>
+            <h1>La Fortuna a un Clic de Distancia</h1>
+            <p class="hero-sub">Participa en la lotería más justa del mundo. Sin ballenas, sin trucos. Solo tú, el blockchain y la suerte.</p>
+            
+            <div class="stats-grid">
+                <div class="stat-card glass-card">
+                    <span class="stat-label">Tu Oportunidad</span>
+                    <span class="stat-value">Equitativa</span>
+                    <span class="stat-desc">Max 20 tickets/persona</span>
+                </div>
+                <div class="stat-card glass-card">
+                    <span class="stat-label">Precio Ticket</span>
+                    <span class="stat-value">$1 USD</span>
+                    <span class="stat-desc">En BNB</span>
+                </div>
+                <div class="stat-card glass-card highlight-card">
+                    <span class="stat-label">Pozo Actual</span>
+                    <span class="stat-value jackpot-text" id="jackpotAmount">$0.00</span>
+                    <span class="stat-desc">Actualizado en vivo</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tarjeta de Acción -->
+        <div class="action-card glass-panel">
+            <div class="timer-display">
+                <span class="timer-label">Sorteo en:</span>
+                <div class="countdown" id="countdown">72h : 00m : 00s</div>
+            </div>
+
+            <div class="ticket-control">
+                <label>Cantidad de Tickets:</label>
+                <div class="input-group">
+                    <button class="btn-control" id="btnMinus">-</button>
+                    <input type="number" id="ticketInput" value="1" min="1" max="20" readonly>
+                    <button class="btn-control" id="btnPlus">+</button>
+                </div>
+                <div class="cost-display">Total a pagar: <span id="totalCost">0.003</span> BNB (~$1)</div>
+            </div>
+
+            <button id="buyBtn" class="btn-primary" disabled>Conecta tu Wallet para Jugar</button>
+            <p class="disclaimer">🔒 El contrato inteligente no tiene acceso a tus fondos, solo recibe el pago del ticket.</p>
+        </div>
+    </header>
+
+    <!-- Sección de Pasos -->
+    <section class="steps-section" id="como-funciona">
+        <h2>Transparencia Radical</h2>
+        <div class="steps-grid">
+            <div class="step-item">
+                <div class="step-number">01</div>
+                <h3>Conecta & Compra</h3>
+                <p>Usa MetaMask o TrustWallet. Envía $1 BNB por ticket. El límite de 20 tickets asegura que nadie compre el 100% del pozo.</p>
+            </div>
+            <div class="step-item">
+                <div class="step-number">02</div>
+                <h3>Espera el Sorteo</h3>
+                <p>El contrato acumula los fondos automáticamente. Si el pozo llega a $100, se activa la cuenta regresiva de 3 días.</p>
+            </div>
+            <div class="step-item">
+                <div class="step-number">03</div>
+                <h3>Pago Automático</h3>
+                <p>¡Sin reclamar! Si ganas, el contrato inteligente envía el 80% del pozo directo a tu billetera al instante.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Feed de Transparencia -->
+    <section class="live-feed-section glass-panel" id="transparencia">
+        <div class="feed-header">
+            <h3>📜 Actividad en Vivo (Blockchain)</h3>
+            <span class="live-dot">● En tiempo real</span>
+        </div>
+        <div class="transaction-list" id="txList">
+            <div class="empty-state">Esperando transacciones...</div>
+            <!-- Se llenará con JS -->
+        </div>
+    </section>
+
+    <footer>
+        <p>FairChance Lottery © 2026. Código 100% Verificado en BSCScan.</p>
+        <div class="social-links">
+            <a href="#">Telegram</a>
+            <a href="#">Twitter</a>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
