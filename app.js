@@ -14,11 +14,44 @@ const CONTRACT_ABI = [
     "function minPoolToDraw() view returns (uint256)",
     "function lotteryId() view returns (uint256)",
     "function buyTickets() payable",
-    "event NewTicketBought(address indexed player, uint256 amount)"
+    "event NewTicketBought(address indexed player, uint256 amount)",
+    "event WinnerPicked(address indexed winner, uint256 prize, uint256 lotteryId)"
 ];
 
 let provider, signer, contract, readOnlyProvider;
 let userAddress = null;
+
+// --- RPC CONFIGURATION (FALLBACK SYSTEM) ---
+const RPC_URLS = [
+    "https://bsc-dataseed1.binance.org",
+    "https://bsc-dataseed2.binance.org",
+    "https://bsc-dataseed1.defibit.io",
+    "https://bsc-rpc.publicnode.com"
+];
+
+async function getResponsiveProvider() {
+    for (const url of RPC_URLS) {
+        try {
+            console.log("Probando RPC:", url);
+            // Usamos un timeout corto (3s) para no bloquear la UI
+            const tempProvider = new ethers.providers.JsonRpcProvider({
+                url: url,
+                timeout: 3000
+            });
+            // Test connection
+            await tempProvider.getBlockNumber();
+            console.log("‚úÖ RPC Conectado:", url);
+            return tempProvider;
+        } catch (e) {
+            console.warn("‚ö†Ô∏è RPC Fall√≥:", url);
+            continue;
+        }
+    }
+    // Fallback final: intentamos PublicNode sin timeout estricto
+    console.warn("Todos los RPC fallaron, intentando PublicNode como √∫ltimo recurso...");
+    return new ethers.providers.JsonRpcProvider("https://bsc-rpc.publicnode.com");
+}
+
 
 // Elementos del DOM
 const connectBtn = document.getElementById('connectBtn');
@@ -35,7 +68,9 @@ const countdownEl = document.getElementById('countdown');
 async function initializeRealData() {
     try {
         // Conectar a BSC Mainnet (lectura p√∫blica, sin wallet)
-        readOnlyProvider = new ethers.providers.JsonRpcProvider("https://bsc-rpc.publicnode.com");
+        if (!readOnlyProvider) {
+            readOnlyProvider = await getResponsiveProvider();
+        }
 
         // Leer balance del contrato
         const balanceWei = await readOnlyProvider.getBalance(CONTRACT_ADDRESS);
@@ -261,13 +296,12 @@ function getRelativeTime(timestamp) {
     return `Hace ${Math.floor(diff / 86400)}d`;
 }
 
-// --- CARGAR √öLTIMAS TRANSACCIONES (RPC P√öBLICO) ---
 // --- CARGAR √öLTIMAS TRANSACCIONES (M√âTODO DIRECTO) ---
 // Leemos el array 'players' directamente para evitar problemas de indexado de eventos RPC.
 async function loadLiveActivity() {
     try {
         if (!readOnlyProvider) {
-            readOnlyProvider = new ethers.providers.JsonRpcProvider("https://bsc-rpc.publicnode.com");
+            readOnlyProvider = await getResponsiveProvider();
         }
 
         // Usamos un contrato con el ABI espec√≠fico para leer el array
@@ -362,19 +396,13 @@ function startTransactionPolling() {
     console.log("üîÑ Sistema de actualizaci√≥n en vivo activado (Lectura Directa)");
 }
 
-// --- INICIALIZAR AL CARGAR ---
-updateCost();
-initializeRealData();
-startTransactionPolling();
-loadWinnersHistory();
-
 // --- CARGAR HISTORIAL DE GANADORES ---
 async function loadWinnersHistory() {
     const winnersList = document.getElementById('winnersList');
     if (!winnersList) return;
 
     try {
-        const provider = new ethers.providers.JsonRpcProvider("https://bsc-rpc.publicnode.com");
+        const provider = readOnlyProvider || await getResponsiveProvider();
         const contract = new ethers.Contract(CONTRACT_ADDRESS, [
             "event WinnerPicked(address indexed winner, uint256 prize, uint256 lotteryId)"
         ], provider);
@@ -387,17 +415,18 @@ async function loadWinnersHistory() {
 
         if (events.length === 0) {
             winnersList.innerHTML = `
-    < div class="no-winners" >
+                <div class="no-winners">
                     <span class="no-winners-icon">üé∞</span>
                     <p>A√∫n no ha habido ning√∫n sorteo. ¬°S√© parte del primer ganador!</p>
-                </div >
-    `;
+                </div>
+            `;
             return;
         }
 
         // Mostrar ganadores (m√°s reciente primero)
         winnersList.innerHTML = '';
-        const reversedEvents = events.reverse();
+        // Clone and reverse to not affect original array if needed
+        const reversedEvents = [...events].reverse();
 
         for (const event of reversedEvents.slice(0, 10)) { // √öltimos 10
             const winner = event.args.winner;
@@ -411,10 +440,10 @@ async function loadWinnersHistory() {
             const winnerCard = document.createElement('div');
             winnerCard.className = 'winner-card';
             winnerCard.innerHTML = `
-    < div class="winner-info" >
+                <div class="winner-info">
                     <span class="winner-round">Ronda #${lotteryId}</span>
                     <span class="winner-address">${winner.slice(0, 8)}...${winner.slice(-6)}</span>
-                </div >
+                </div>
                 <div class="winner-prize">
                     <span class="prize-amount">$${prizeUSD} USD</span>
                     <span class="prize-bnb">(${prizeBNB.toFixed(4)} BNB)</span>
@@ -422,87 +451,23 @@ async function loadWinnersHistory() {
                 <a href="https://bscscan.com/tx/${txHash}" target="_blank" class="verify-btn">
                     ‚úì Verificar en BscScan
                 </a>
-`;
+            `;
             winnersList.appendChild(winnerCard);
         }
 
     } catch (error) {
         console.error("Error cargando ganadores:", error);
         winnersList.innerHTML = `
-    < div class="error-state" >
-        <p>No se pudo cargar el historial. Verifica directamente en
-            <a href="https://bscscan.com/address/${CONTRACT_ADDRESS}#events" target="_blank">BscScan</a>.</p>
-            </div >
-    `;
+            <div class="error-state">
+                <p>No se pudo cargar el historial. Verifica directamente en 
+                <a href="https://bscscan.com/address/${CONTRACT_ADDRESS}#events" target="_blank">BscScan</a>.</p>
+            </div>
+        `;
     }
 }
- 
- / /   - - -   C A R G A R   H I S T O R I A L   D E   G A N A D O R E S   - - -  
- a s y n c   f u n c t i o n   l o a d W i n n e r s H i s t o r y ( )   {  
-         c o n s t   w i n n e r s L i s t   =   d o c u m e n t . g e t E l e m e n t B y I d ( ' w i n n e r s L i s t ' ) ;  
-         i f   ( ! w i n n e r s L i s t )   r e t u r n ;  
-  
-         t r y   {  
-                 c o n s t   p r o v i d e r   =   n e w   e t h e r s . p r o v i d e r s . J s o n R p c P r o v i d e r ( " h t t p s : / / b s c - r p c . p u b l i c n o d e . c o m " ) ;  
-                 c o n s t   c o n t r a c t   =   n e w   e t h e r s . C o n t r a c t ( C O N T R A C T _ A D D R E S S ,   [  
-                         " e v e n t   W i n n e r P i c k e d ( a d d r e s s   i n d e x e d   w i n n e r ,   u i n t 2 5 6   p r i z e ,   u i n t 2 5 6   l o t t e r y I d ) "  
-                 ] ,   p r o v i d e r ) ;  
-  
-                 / /   B u s c a r   e v e n t o s   e n   l o s   √ ∫ l t i m o s   5 0 0 0   b l o q u e s   ( ~ 4   h o r a s )   p a r a   e v i t a r   l i m i t   e x c e e d e d  
-                 c o n s t   c u r r e n t B l o c k   =   a w a i t   p r o v i d e r . g e t B l o c k N u m b e r ( ) ;  
-                 c o n s t   f r o m B l o c k   =   M a t h . m a x ( 0 ,   c u r r e n t B l o c k   -   5 0 0 0 ) ;  
-                 c o n s t   f i l t e r   =   c o n t r a c t . f i l t e r s . W i n n e r P i c k e d ( ) ;  
-                 c o n s t   e v e n t s   =   a w a i t   c o n t r a c t . q u e r y F i l t e r ( f i l t e r ,   f r o m B l o c k ,   ' l a t e s t ' ) ;  
-  
-                 i f   ( e v e n t s . l e n g t h   = = =   0 )   {  
-                         w i n n e r s L i s t . i n n e r H T M L   =   `  
-                                 < d i v   c l a s s = " n o - w i n n e r s " >  
-                                         < s p a n   c l a s s = " n o - w i n n e r s - i c o n " >  x}∞ < / s p a n >  
-                                         < p > A √ ∫ n   n o   h a   h a b i d o   n i n g √ ∫ n   s o r t e o .   ¬ ° S √ ©   p a r t e   d e l   p r i m e r   g a n a d o r ! < / p >  
-                                 < / d i v >  
-                         ` ;  
-                         r e t u r n ;  
-                 }  
-  
-                 / /   M o s t r a r   g a n a d o r e s   ( m √ ° s   r e c i e n t e   p r i m e r o )  
-                 w i n n e r s L i s t . i n n e r H T M L   =   ' ' ;  
-                 c o n s t   r e v e r s e d E v e n t s   =   e v e n t s . r e v e r s e ( ) ;  
-  
-                 f o r   ( c o n s t   e v e n t   o f   r e v e r s e d E v e n t s . s l i c e ( 0 ,   1 0 ) )   {   / /   √ al t i m o s   1 0  
-                         c o n s t   w i n n e r   =   e v e n t . a r g s . w i n n e r ;  
-                         c o n s t   p r i z e W e i   =   e v e n t . a r g s . p r i z e ;  
-                         c o n s t   l o t t e r y I d   =   e v e n t . a r g s . l o t t e r y I d . t o S t r i n g ( ) ;  
-                         c o n s t   t x H a s h   =   e v e n t . t r a n s a c t i o n H a s h ;  
-  
-                         c o n s t   p r i z e B N B   =   p a r s e F l o a t ( e t h e r s . u t i l s . f o r m a t E t h e r ( p r i z e W e i ) ) ;  
-                         c o n s t   p r i z e U S D   =   ( p r i z e B N B   *   B N B _ P R I C E _ U S D ) . t o F i x e d ( 2 ) ;  
-  
-                         c o n s t   w i n n e r C a r d   =   d o c u m e n t . c r e a t e E l e m e n t ( ' d i v ' ) ;  
-                         w i n n e r C a r d . c l a s s N a m e   =   ' w i n n e r - c a r d ' ;  
-                         w i n n e r C a r d . i n n e r H T M L   =   `  
-                                 < d i v   c l a s s = " w i n n e r - i n f o " >  
-                                         < s p a n   c l a s s = " w i n n e r - r o u n d " > R o n d a   # $ { l o t t e r y I d } < / s p a n >  
-                                         < s p a n   c l a s s = " w i n n e r - a d d r e s s " > $ { w i n n e r . s l i c e ( 0 ,   8 ) } . . . $ { w i n n e r . s l i c e ( - 6 ) } < / s p a n >  
-                                 < / d i v >  
-                                 < d i v   c l a s s = " w i n n e r - p r i z e " >  
-                                         < s p a n   c l a s s = " p r i z e - a m o u n t " > $ $ { p r i z e U S D }   U S D < / s p a n >  
-                                         < s p a n   c l a s s = " p r i z e - b n b " > ( $ { p r i z e B N B . t o F i x e d ( 4 ) }   B N B ) < / s p a n >  
-                                 < / d i v >  
-                                 < a   h r e f = " h t t p s : / / b s c s c a n . c o m / t x / $ { t x H a s h } "   t a r g e t = " _ b l a n k "   c l a s s = " v e r i f y - b t n " >  
-                                         ‚ S   V e r i f i c a r   e n   B s c S c a n  
-                                 < / a >  
-                         ` ;  
-                         w i n n e r s L i s t . a p p e n d C h i l d ( w i n n e r C a r d ) ;  
-                 }  
-  
-         }   c a t c h   ( e r r o r )   {  
-                 c o n s o l e . e r r o r ( " E r r o r   c a r g a n d o   g a n a d o r e s : " ,   e r r o r ) ;  
-                 w i n n e r s L i s t . i n n e r H T M L   =   `  
-                         < d i v   c l a s s = " e r r o r - s t a t e " >  
-                                 < p > N o   s e   p u d o   c a r g a r   e l   h i s t o r i a l .   V e r i f i c a   d i r e c t a m e n t e   e n    
-                                 < a   h r e f = " h t t p s : / / b s c s c a n . c o m / a d d r e s s / $ { C O N T R A C T _ A D D R E S S } # e v e n t s "   t a r g e t = " _ b l a n k " > B s c S c a n < / a > . < / p >  
-                         < / d i v >  
-                 ` ;  
-         }  
- }  
- 
+
+// --- INICIALIZAR AL CARGAR ---
+updateCost();
+initializeRealData();
+startTransactionPolling();
+loadWinnersHistory();
