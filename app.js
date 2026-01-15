@@ -174,11 +174,32 @@ buyBtn.addEventListener('click', async () => {
     buyBtn.disabled = false;
 });
 
-// --- FEED DE TRANSACCIONES EN VIVO (Últimas 10 persistentes) ---
+// --- FEED DE TRANSACCIONES EN VIVO (Últimas 10 persistentes con localStorage) ---
 const MAX_TRANSACTIONS_DISPLAYED = 10;
+const STORAGE_KEY = 'fairchance_transactions';
 let displayedTransactions = []; // Array para trackear transacciones mostradas
 
-function addTransaction(addr, tickets, txHash, timestamp = null) {
+// Guardar transacciones en localStorage
+function saveTransactionsToStorage(transactions) {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions.slice(0, MAX_TRANSACTIONS_DISPLAYED)));
+    } catch (e) {
+        console.warn('No se pudo guardar en localStorage:', e);
+    }
+}
+
+// Cargar transacciones desde localStorage
+function loadTransactionsFromStorage() {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+        console.warn('No se pudo cargar desde localStorage:', e);
+        return [];
+    }
+}
+
+function addTransaction(addr, tickets, txHash, timestamp = null, saveToStorage = true) {
     // Evitar duplicados
     if (displayedTransactions.includes(txHash)) return;
 
@@ -187,6 +208,7 @@ function addTransaction(addr, tickets, txHash, timestamp = null) {
     div.setAttribute('data-txhash', txHash);
 
     // Calcular tiempo relativo
+    const txTimestamp = timestamp || Math.floor(Date.now() / 1000);
     const timeAgo = timestamp ? getRelativeTime(timestamp) : 'Ahora';
 
     div.innerHTML = `
@@ -210,6 +232,14 @@ function addTransaction(addr, tickets, txHash, timestamp = null) {
     txList.prepend(div);
     displayedTransactions.unshift(txHash);
 
+    // Guardar en localStorage si es nueva transacción
+    if (saveToStorage) {
+        const stored = loadTransactionsFromStorage();
+        stored.unshift({ addr, tickets, txHash, timestamp: txTimestamp });
+        saveTransactionsToStorage(stored);
+        console.log('💾 Transacción guardada en localStorage');
+    }
+
     // Mantener solo las últimas 10
     while (txList.children.length > MAX_TRANSACTIONS_DISPLAYED) {
         const lastChild = txList.lastElementChild;
@@ -231,125 +261,35 @@ function getRelativeTime(timestamp) {
     return `Hace ${Math.floor(diff / 86400)}d`;
 }
 
-// --- CARGAR ÚLTIMAS 10 TRANSACCIONES DESDE BLOCKCHAIN ---
+// --- CARGAR ÚLTIMAS 10 TRANSACCIONES (desde localStorage primero) ---
 async function loadRecentTransactions() {
-    // Mostrar estado de carga
-    txList.innerHTML = `
-        <div class="empty-state">
-            <span class="empty-icon">🔄</span>
-            <p>Cargando actividad reciente...</p>
-        </div>
-    `;
+    // Primero intentar cargar desde localStorage (muy rápido y confiable)
+    const storedTransactions = loadTransactionsFromStorage();
 
-    // RPCs más confiables para consultar logs
-    const rpcEndpoints = [
-        "https://rpc.ankr.com/bsc",
-        "https://bsc-dataseed1.binance.org/",
-        "https://bsc-dataseed2.binance.org/"
-    ];
-
-    let events = [];
-    let provider = null;
-
-    for (const rpc of rpcEndpoints) {
-        try {
-            console.log(`Probando RPC: ${rpc}`);
-            provider = new ethers.providers.JsonRpcProvider(rpc);
-
-            const contract = new ethers.Contract(CONTRACT_ADDRESS, [
-                "event NewTicketBought(address indexed player, uint256 amount)"
-            ], provider);
-
-            const currentBlock = await provider.getBlockNumber();
-            console.log(`Bloque actual: ${currentBlock}`);
-
-            // Buscar en un rango MUY pequeño para evitar rate limiting (500 bloques = ~25 min)
-            const fromBlock = Math.max(0, currentBlock - 500);
-            console.log(`Buscando eventos desde bloque ${fromBlock}...`);
-
-            const filter = contract.filters.NewTicketBought();
-            events = await contract.queryFilter(filter, fromBlock, currentBlock);
-
-            console.log(`Eventos encontrados: ${events.length}`);
-
-            if (events.length > 0) {
-                break; // Encontramos eventos, salir del loop
-            }
-
-            // Si no hay eventos recientes, buscar un poco más atrás (2000 bloques máx)
-            if (events.length === 0) {
-                const olderFromBlock = Math.max(0, currentBlock - 2000);
-                console.log(`Buscando más atrás desde bloque ${olderFromBlock}...`);
-                events = await contract.queryFilter(filter, olderFromBlock, fromBlock);
-                console.log(`Eventos antiguos encontrados: ${events.length}`);
-                if (events.length > 0) break;
-            }
-
-        } catch (error) {
-            console.warn(`RPC ${rpc} falló:`, error.message);
-            continue;
-        }
-    }
-
-    // Si no hay eventos
-    if (events.length === 0) {
-        console.log("No se encontraron eventos de compra");
-        txList.innerHTML = `
-            <div class="empty-state">
-                <span class="empty-icon">👀</span>
-                <p>Esperando la primera compra...</p>
-                <p class="empty-subtitle">¡Sé el primero en participar!</p>
-            </div>
-        `;
-        return;
-    }
-
-    try {
-        // Ordenar por bloque (más reciente primero) y tomar últimos 10
-        const sortedEvents = events.sort((a, b) => b.blockNumber - a.blockNumber).slice(0, 10);
-        console.log(`Procesando ${sortedEvents.length} eventos...`);
-
-        // Obtener timestamps de los bloques
-        const eventsWithTime = await Promise.all(sortedEvents.map(async (event) => {
-            try {
-                const block = await provider.getBlock(event.blockNumber);
-                return {
-                    player: event.args.player,
-                    amount: event.args.amount.toNumber(),
-                    txHash: event.transactionHash,
-                    timestamp: block ? block.timestamp : Math.floor(Date.now() / 1000)
-                };
-            } catch (e) {
-                return {
-                    player: event.args.player,
-                    amount: event.args.amount.toNumber(),
-                    txHash: event.transactionHash,
-                    timestamp: Math.floor(Date.now() / 1000)
-                };
-            }
-        }));
-
-        // Limpiar y mostrar
+    if (storedTransactions.length > 0) {
+        console.log(`📦 Cargando ${storedTransactions.length} transacciones desde localStorage`);
         txList.innerHTML = '';
         displayedTransactions = [];
 
-        // Mostrar del más antiguo al más reciente (para que prepend funcione)
-        eventsWithTime.reverse().forEach(tx => {
-            addTransaction(tx.player, tx.amount, tx.txHash, tx.timestamp);
+        // Mostrar del más antiguo al más nuevo
+        storedTransactions.reverse().forEach(tx => {
+            addTransaction(tx.addr, tx.tickets, tx.txHash, tx.timestamp, false);
         });
 
-        console.log(`✅ Cargadas ${eventsWithTime.length} transacciones`);
-
-    } catch (error) {
-        console.error("Error procesando eventos:", error);
-        txList.innerHTML = `
-            <div class="empty-state">
-                <span class="empty-icon">👀</span>
-                <p>Esperando compras recientes...</p>
-                <p class="empty-subtitle">Las nuevas compras aparecerán aquí</p>
-            </div>
-        `;
+        console.log('✅ Transacciones cargadas desde localStorage');
+        return; // No intentar cargar desde blockchain si ya tenemos datos
     }
+
+    // Si no hay datos locales, mostrar mensaje de espera
+    txList.innerHTML = `
+        <div class="empty-state">
+            <span class="empty-icon">👀</span>
+            <p>Esperando la primera compra...</p>
+            <p class="empty-subtitle">¡Sé el primero en participar!</p>
+        </div>
+    `;
+
+    console.log('No hay transacciones guardadas localmente');
 }
 
 // --- ESCUCHAR NUEVAS TRANSACCIONES EN TIEMPO REAL ---
