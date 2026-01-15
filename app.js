@@ -242,8 +242,8 @@ async function loadRecentTransactions() {
     `;
 
     try {
-        // Usar BscScan API para obtener transacciones del contrato (más confiable)
-        const apiUrl = `https://api.bscscan.com/api?module=account&action=txlist&address=${CONTRACT_ADDRESS}&startblock=0&endblock=99999999&page=1&offset=50&sort=desc`;
+        // Usar API V2 de Etherscan con chainid para BSC
+        const apiUrl = `https://api.etherscan.io/v2/api?chainid=56&module=account&action=txlist&address=${CONTRACT_ADDRESS}&startblock=0&endblock=99999999&page=1&offset=50&sort=desc`;
 
         const response = await fetch(apiUrl);
         const data = await response.json();
