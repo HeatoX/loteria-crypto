@@ -348,20 +348,131 @@ body {
 }
 
 .transaction-list {
-    max-height: 200px;
+    max-height: 450px;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-color) transparent;
+}
+
+.transaction-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.transaction-list::-webkit-scrollbar-thumb {
+    background: var(--accent-color);
+    border-radius: 4px;
 }
 
 .tx-item {
     display: flex;
     justify-content: space-between;
-    padding: 0.8rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    align-items: center;
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     font-size: 0.9rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.tx-item:hover {
+    background: rgba(59, 130, 246, 0.1);
+    transform: translateX(4px);
+}
+
+.tx-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.tx-address {
+    font-weight: 600;
+    color: white;
+    font-size: 0.95rem;
+}
+
+.tx-details {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.tx-details strong {
+    color: var(--gold);
+}
+
+.tx-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.3rem;
+}
+
+.tx-time {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    opacity: 0.8;
 }
 
 .tx-hash {
     color: var(--accent-glow);
+    font-size: 0.8rem;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.tx-hash:hover {
+    color: white;
+    text-decoration: underline;
+}
+
+/* Animaciones para transacciones */
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+}
+
+/* Estado vacío mejorado */
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+}
+
+.empty-icon {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 0.75rem;
+    animation: pulse 2s infinite;
+}
+
+.empty-state p {
+    margin: 0.5rem 0;
+}
+
+.empty-subtitle {
+    font-size: 0.85rem;
+    opacity: 0.7;
 }
 
 footer {

@@ -174,25 +174,154 @@ buyBtn.addEventListener('click', async () => {
     buyBtn.disabled = false;
 });
 
-// --- FEED DE TRANSACCIONES ---
-function addTransaction(addr, tickets, txHash) {
+// --- FEED DE TRANSACCIONES EN VIVO (Últimas 10 persistentes) ---
+const MAX_TRANSACTIONS_DISPLAYED = 10;
+let displayedTransactions = []; // Array para trackear transacciones mostradas
+
+function addTransaction(addr, tickets, txHash, timestamp = null) {
+    // Evitar duplicados
+    if (displayedTransactions.includes(txHash)) return;
+
     const div = document.createElement('div');
     div.className = 'tx-item';
+    div.setAttribute('data-txhash', txHash);
+
+    // Calcular tiempo relativo
+    const timeAgo = timestamp ? getRelativeTime(timestamp) : 'Ahora';
+
     div.innerHTML = `
-        <a href="https://bscscan.com/tx/${txHash}" target="_blank" class="tx-hash">Ver Tx ↗</a>
-        <span>${addr.slice(0, 6)}...${addr.slice(-4)} compró ${tickets} ticket(s)</span>
+        <div class="tx-info">
+            <span class="tx-address">🎫 ${addr.slice(0, 6)}...${addr.slice(-4)}</span>
+            <span class="tx-details">compró <strong>${tickets}</strong> ticket(s)</span>
+        </div>
+        <div class="tx-meta">
+            <span class="tx-time">${timeAgo}</span>
+            <a href="https://bscscan.com/tx/${txHash}" target="_blank" class="tx-hash">Ver ↗</a>
+        </div>
     `;
 
+    // Limpiar estado vacío
     if (txList.querySelector('.empty-state')) {
         txList.innerHTML = '';
     }
 
+    // Añadir al inicio con animación
+    div.style.animation = 'slideIn 0.4s ease-out';
     txList.prepend(div);
+    displayedTransactions.unshift(txHash);
+
+    // Mantener solo las últimas 10
+    while (txList.children.length > MAX_TRANSACTIONS_DISPLAYED) {
+        const lastChild = txList.lastElementChild;
+        const lastHash = lastChild.getAttribute('data-txhash');
+        displayedTransactions = displayedTransactions.filter(h => h !== lastHash);
+        lastChild.style.animation = 'fadeOut 0.3s ease-out';
+        setTimeout(() => lastChild.remove(), 300);
+    }
+}
+
+// Función para tiempo relativo
+function getRelativeTime(timestamp) {
+    const now = Math.floor(Date.now() / 1000);
+    const diff = now - timestamp;
+
+    if (diff < 60) return 'Hace segundos';
+    if (diff < 3600) return `Hace ${Math.floor(diff / 60)} min`;
+    if (diff < 86400) return `Hace ${Math.floor(diff / 3600)}h`;
+    return `Hace ${Math.floor(diff / 86400)}d`;
+}
+
+// --- CARGAR ÚLTIMAS 10 TRANSACCIONES DESDE BLOCKCHAIN ---
+async function loadRecentTransactions() {
+    try {
+        const provider = new ethers.providers.JsonRpcProvider("https://bsc-dataseed1.binance.org/");
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, [
+            "event NewTicketBought(address indexed player, uint256 amount)"
+        ], provider);
+
+        // Buscar eventos desde los últimos ~5000 bloques (~4 horas)
+        const currentBlock = await provider.getBlockNumber();
+        const fromBlock = Math.max(0, currentBlock - 5000);
+
+        const filter = contract.filters.NewTicketBought();
+        const events = await contract.queryFilter(filter, fromBlock, 'latest');
+
+        if (events.length === 0) {
+            txList.innerHTML = `
+                <div class="empty-state">
+                    <span class="empty-icon">👀</span>
+                    <p>Esperando la primera compra...</p>
+                    <p class="empty-subtitle">¡Sé el primero en participar!</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Ordenar por bloque (más reciente primero) y tomar últimos 10
+        const sortedEvents = events.sort((a, b) => b.blockNumber - a.blockNumber).slice(0, 10);
+
+        // Obtener timestamps de los bloques
+        const eventsWithTime = await Promise.all(sortedEvents.map(async (event) => {
+            const block = await provider.getBlock(event.blockNumber);
+            return {
+                player: event.args.player,
+                amount: event.args.amount.toNumber(),
+                txHash: event.transactionHash,
+                timestamp: block.timestamp
+            };
+        }));
+
+        // Limpiar y mostrar (del más antiguo al más nuevo para que prepend funcione correctamente)
+        txList.innerHTML = '';
+        displayedTransactions = [];
+
+        eventsWithTime.reverse().forEach(tx => {
+            addTransaction(tx.player, tx.amount, tx.txHash, tx.timestamp);
+        });
+
+        console.log(`Cargadas ${eventsWithTime.length} transacciones recientes`);
+
+    } catch (error) {
+        console.error("Error cargando transacciones:", error);
+        txList.innerHTML = `
+            <div class="empty-state">
+                <span class="empty-icon">📡</span>
+                <p>Conectando con la blockchain...</p>
+            </div>
+        `;
+    }
+}
+
+// --- ESCUCHAR NUEVAS TRANSACCIONES EN TIEMPO REAL ---
+async function listenForNewTransactions() {
+    try {
+        // Usar WebSocket para eventos en tiempo real
+        const wsProvider = new ethers.providers.WebSocketProvider("wss://bsc-ws-node.nariox.org:443");
+        const contract = new ethers.Contract(CONTRACT_ADDRESS, [
+            "event NewTicketBought(address indexed player, uint256 amount)"
+        ], wsProvider);
+
+        contract.on("NewTicketBought", (player, amount, event) => {
+            console.log("🎫 Nueva compra detectada:", player, amount.toNumber());
+            addTransaction(player, amount.toNumber(), event.transactionHash);
+            // Actualizar el pozo también
+            initializeRealData();
+        });
+
+        console.log("✅ Escuchando transacciones en tiempo real...");
+
+    } catch (error) {
+        console.error("WebSocket no disponible, usando polling:", error);
+        // Fallback: refrescar cada 30 segundos
+        setInterval(loadRecentTransactions, 30000);
+    }
 }
 
 // --- INICIALIZAR AL CARGAR ---
 updateCost();
 initializeRealData();
+loadRecentTransactions();
+listenForNewTransactions();
 loadWinnersHistory();
 
 // --- CARGAR HISTORIAL DE GANADORES ---
