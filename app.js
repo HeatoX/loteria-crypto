@@ -390,14 +390,16 @@ async function loadWinnersHistory() {
     if (!winnersList) return;
 
     try {
-        const provider = new ethers.providers.JsonRpcProvider("https://bsc-dataseed1.binance.org/");
+        const provider = new ethers.providers.JsonRpcProvider("https://rpc.ankr.com/bsc");
         const contract = new ethers.Contract(CONTRACT_ADDRESS, [
             "event WinnerPicked(address indexed winner, uint256 prize, uint256 lotteryId)"
         ], provider);
 
-        // Buscar eventos desde el bloque de creación del contrato
+        // Buscar eventos en los últimos 100000 bloques (~4 días) para evitar limit exceeded
+        const currentBlock = await provider.getBlockNumber();
+        const fromBlock = Math.max(0, currentBlock - 100000);
         const filter = contract.filters.WinnerPicked();
-        const events = await contract.queryFilter(filter, 0, 'latest');
+        const events = await contract.queryFilter(filter, fromBlock, 'latest');
 
         if (events.length === 0) {
             winnersList.innerHTML = `
