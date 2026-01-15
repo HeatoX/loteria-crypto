@@ -35,7 +35,7 @@ const countdownEl = document.getElementById('countdown');
 async function initializeRealData() {
     try {
         // Conectar a BSC Mainnet (lectura pública, sin wallet)
-        readOnlyProvider = new ethers.providers.JsonRpcProvider("https://bsc-dataseed1.binance.org/");
+        readOnlyProvider = new ethers.providers.JsonRpcProvider("https://bsc-rpc.publicnode.com");
 
         // Leer balance del contrato
         const balanceWei = await readOnlyProvider.getBalance(CONTRACT_ADDRESS);
@@ -264,8 +264,9 @@ function getRelativeTime(timestamp) {
 // --- CARGAR ÚLTIMAS TRANSACCIONES (RPC PÚBLICO) ---
 async function loadRecentTransactions() {
     try {
+        // Usar un RPC público más permisivo (PublicNode)
         if (!readOnlyProvider) {
-            readOnlyProvider = new ethers.providers.JsonRpcProvider("https://bsc-dataseed1.binance.org/");
+            readOnlyProvider = new ethers.providers.JsonRpcProvider("https://bsc-rpc.publicnode.com");
         }
 
         const contract = new ethers.Contract(CONTRACT_ADDRESS, [
@@ -274,10 +275,11 @@ async function loadRecentTransactions() {
 
         // Obtener bloque actual
         const currentBlock = await readOnlyProvider.getBlockNumber();
-        // Buscar en los últimos 2000 bloques (aprox 1.5 horas) para asegurar velocidad y evitar errores
-        const fromBlock = Math.max(0, currentBlock - 2000);
+        // Buscar en los últimos 10000 bloques (aprox 8 horas)
+        // PublicNode permite rangos más amplios que los nodos de Binance
+        const fromBlock = Math.max(0, currentBlock - 10000);
 
-        console.log(`🔄 Buscando tickets desde bloque ${fromBlock}...`);
+        console.log(`🔄 Buscando tickets desde bloque ${fromBlock} (Rango: 10000)...`);
 
         const filter = contract.filters.NewTicketBought();
         const events = await contract.queryFilter(filter, fromBlock, 'latest');
@@ -359,7 +361,7 @@ async function loadWinnersHistory() {
     if (!winnersList) return;
 
     try {
-        const provider = new ethers.providers.JsonRpcProvider("https://bsc-dataseed1.binance.org/");
+        const provider = new ethers.providers.JsonRpcProvider("https://bsc-rpc.publicnode.com");
         const contract = new ethers.Contract(CONTRACT_ADDRESS, [
             "event WinnerPicked(address indexed winner, uint256 prize, uint256 lotteryId)"
         ], provider);
